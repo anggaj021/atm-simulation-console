@@ -13,6 +13,13 @@ import (
 	"atm-simulation-console/internal/util/generator"
 )
 
+type ATMData struct {
+	AccNumber string
+	AccDest   string
+	Amount    string
+	Ref       string
+}
+
 type ATMController struct {
 	service *atm_service.ATMService
 }
@@ -133,44 +140,48 @@ func (c *ATMController) processTrfDestNumber(reader *bufio.Reader, accNumber str
 			formatter.ErrorMessage(err.Error())
 			return true
 		}
-		return c.displayTrfAmountScreen(reader, accNumber, val)
+		detail := ATMData{
+			AccNumber: accNumber,
+			AccDest:   val,
+		}
+		return c.displayTrfAmountScreen(reader, detail)
 	}
 	return true
 }
 
-func (c *ATMController) processTrfAmount(reader *bufio.Reader, accNumber string, accDest string, val string) bool {
-	switch val {
+func (c *ATMController) processTrfAmount(reader *bufio.Reader, detail ATMData) bool {
+	switch detail.Amount {
 	case "":
 	case "0":
-		c.displayTrxScreen(reader, accNumber)
+		c.displayTrxScreen(reader, detail.AccNumber)
 		return false
 	default:
-		intAmount, err := strconv.Atoi(val)
+		intAmount, err := strconv.Atoi(detail.Amount)
 		if err != nil {
 			formatter.ErrorMessage("invalid amount")
 		}
-		err = c.service.ValidateTransferAmount(accNumber, intAmount)
+		err = c.service.ValidateTransferAmount(detail.AccNumber, intAmount)
 		if err != nil {
 			formatter.ErrorMessage(err.Error())
 			return true
 		}
-		return c.displayTransferConfirmScreen(reader, accNumber, accDest, val)
+		return c.displayTransferConfirmScreen(reader, detail)
 	}
 	return true
 }
 
-func (c *ATMController) processTrfConfirm(reader *bufio.Reader, accNumber string, accDest string, amount string, ref string, option string) bool {
+func (c *ATMController) processTrfConfirm(reader *bufio.Reader, detail ATMData, option string) bool {
 	switch option {
 	case "1":
-		intAmount, _ := strconv.Atoi(amount)
-		err := c.service.Transfer(accNumber, accDest, intAmount)
+		intAmount, _ := strconv.Atoi(detail.Amount)
+		err := c.service.Transfer(detail.AccNumber, detail.AccDest, intAmount)
 		if err != nil {
 			formatter.ErrorMessage(err.Error())
 			return true
 		}
-		c.displayTransferSummaryScreen(reader, accNumber, accDest, amount, ref)
+		c.displayTransferSummaryScreen(reader, detail)
 	case "2":
-		return c.displayTrxScreen(reader, accNumber)
+		return c.displayTrxScreen(reader, detail.AccNumber)
 	default:
 		formatter.ErrorMessage("invalid option")
 	}
@@ -268,29 +279,30 @@ func (c *ATMController) displayTrfDestNumScreen(reader *bufio.Reader, accNumber 
 	return false
 }
 
-func (c *ATMController) displayTrfAmountScreen(reader *bufio.Reader, accNumber string, accDest string) bool {
+func (c *ATMController) displayTrfAmountScreen(reader *bufio.Reader, detail ATMData) bool {
 
 	fmt.Println("Please enter transfer amount")
 	fmt.Println("or enter 0 to go back to Transaction")
 	fmt.Print("Transfer amount[0]: ")
 
 	amount := c.service.GetInputString(reader)
-	if accDest != "" {
-		return c.processTrfAmount(reader, accNumber, accDest, amount)
+	detail.Amount = amount
+	if detail.AccDest != "" {
+		return c.processTrfAmount(reader, detail)
 	}
 
-	c.displayTrxScreen(reader, accNumber)
+	c.displayTrxScreen(reader, detail.AccNumber)
 	return false
 }
 
-func (c *ATMController) displayTransferConfirmScreen(reader *bufio.Reader, accNumber string, accDest string, amount string) bool {
+func (c *ATMController) displayTransferConfirmScreen(reader *bufio.Reader, detail ATMData) bool {
 
 	refNum := generator.GenerateRandomNDigitNumber(6)
 	stringRef := strconv.Itoa(refNum)
 
 	fmt.Println("Transfer Confirmation")
-	fmt.Println("Destination Account : " + accDest)
-	fmt.Println("Transfer Amount     : " + amount)
+	fmt.Println("Destination Account : " + detail.AccDest)
+	fmt.Println("Transfer Amount     : " + detail.Amount)
 	fmt.Println("Reference Number    : " + stringRef)
 	fmt.Println("")
 	fmt.Println("1. Confirm Trx")
@@ -298,17 +310,23 @@ func (c *ATMController) displayTransferConfirmScreen(reader *bufio.Reader, accNu
 	fmt.Print("Choose option[2]: ")
 
 	option := c.service.GetInputString(reader)
-	return c.processTrfConfirm(reader, accNumber, accDest, amount, stringRef, option)
+	details := ATMData{
+		AccNumber: detail.AccNumber,
+		AccDest:   detail.AccDest,
+		Amount:    detail.Amount,
+		Ref:       stringRef,
+	}
+	return c.processTrfConfirm(reader, details, option)
 }
 
-func (c *ATMController) displayTransferSummaryScreen(reader *bufio.Reader, accNumber string, accDest string, amount string, ref string) bool {
+func (c *ATMController) displayTransferSummaryScreen(reader *bufio.Reader, detail ATMData) bool {
 
-	balance := c.service.GetBalance(accNumber)
+	balance := c.service.GetBalance(detail.AccNumber)
 
 	fmt.Println("Fund Transfer Summary")
-	fmt.Println("Destination Account : " + accDest)
-	fmt.Println("Transfer Amount     : " + amount)
-	fmt.Println("Reference Number    : " + ref)
+	fmt.Println("Destination Account : " + detail.AccDest)
+	fmt.Println("Transfer Amount     : " + detail.Amount)
+	fmt.Println("Reference Number    : " + detail.Ref)
 	fmt.Println("Balance             : " + strconv.Itoa(balance))
 	fmt.Println("")
 	fmt.Println("1. Transaction")
@@ -316,7 +334,7 @@ func (c *ATMController) displayTransferSummaryScreen(reader *bufio.Reader, accNu
 	fmt.Print("Choose option[2]: ")
 
 	option := c.service.GetInputString(reader)
-	return c.processTrxSummary(reader, accNumber, option)
+	return c.processTrxSummary(reader, detail.AccNumber, option)
 }
 
 // ==================================== OTHER ====================================
