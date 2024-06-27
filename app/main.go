@@ -1,16 +1,16 @@
 package main
 
 import (
-	account_repository "atm-simulation-console/internal/account/repository"
-	atm_controller "atm-simulation-console/internal/atm/controller"
-	atm_service "atm-simulation-console/internal/atm/service"
+	atm_handler "atm-simulation-console/internal/handler/atm"
+	account_repository "atm-simulation-console/internal/repository/account"
+	atm_service "atm-simulation-console/internal/service/atm"
 )
 
 func main() {
 	accountRepo := account_repository.NewAccountRepository()
 	atmSvc := atm_service.NewATMService(accountRepo)
 
-	atmController := atm_controller.NewATMController(atmSvc)
+	atmController := atm_handler.NewATMController(atmSvc)
 
 	atmController.Start()
 }

@@ -1,7 +1,7 @@
 package atm_service
 
 import (
-	account_repository "atm-simulation-console/internal/account/repository"
+	account_repository "atm-simulation-console/internal/repository/account"
 	"bufio"
 	"errors"
 	"regexp"
@@ -112,7 +112,7 @@ func (s *ATMService) Deposit(accNumber string, amount int) bool {
 func (s *ATMService) Transfer(srcNumber, destNumber string, amount int) error {
 
 	destNum := s.repo.FindAccount(destNumber)
-	if destNum == nil {
+	if destNum == nil || srcNumber == destNumber {
 		return errors.New("invalid destination account")
 	}
 

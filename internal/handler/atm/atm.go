@@ -1,8 +1,8 @@
 package atm_controller
 
 import (
-	account_repository "atm-simulation-console/internal/account/repository"
-	atm_service "atm-simulation-console/internal/atm/service"
+	account_repository "atm-simulation-console/internal/repository/account"
+	atm_service "atm-simulation-console/internal/service/atm"
 	"bufio"
 	"fmt"
 	"os"
@@ -68,8 +68,7 @@ func (c *ATMController) processMainMenu(reader *bufio.Reader, accNumber string, 
 		return c.displayWithdrawScreen(reader, accNumber)
 	case "2":
 		return c.displayTrfDestNumScreen(reader, accNumber)
-	case "3":
-	case "":
+	case "3", "":
 		formatter.ErrorMessage("exiting...")
 		return false
 	default:
@@ -105,8 +104,7 @@ func (c *ATMController) processWithdrawMenu(reader *bufio.Reader, accNumber stri
 		return c.displayWdSummaryScreen(reader, accNumber, amount)
 	case "4":
 		return c.displayOtherWithdrawScreen(reader, accNumber)
-	case "5":
-	case "":
+	case "5", "":
 		c.displayTrxScreen(reader, accNumber)
 		return false
 	default:
@@ -129,9 +127,13 @@ func (c *ATMController) processWdSummary(reader *bufio.Reader, accNumber string,
 }
 
 func (c *ATMController) processTrfDestNumber(reader *bufio.Reader, accNumber string, val string) bool {
+	if val == accNumber {
+		formatter.ErrorMessage("invalid account number")
+		return true
+	}
+
 	switch val {
-	case "":
-	case "0":
+	case "", "0":
 		c.displayTrxScreen(reader, accNumber)
 		return false
 	default:
@@ -146,13 +148,11 @@ func (c *ATMController) processTrfDestNumber(reader *bufio.Reader, accNumber str
 		}
 		return c.displayTrfAmountScreen(reader, detail)
 	}
-	return true
 }
 
 func (c *ATMController) processTrfAmount(reader *bufio.Reader, detail ATMData) bool {
 	switch detail.Amount {
-	case "":
-	case "0":
+	case "", "0":
 		c.displayTrxScreen(reader, detail.AccNumber)
 		return false
 	default:
@@ -167,7 +167,6 @@ func (c *ATMController) processTrfAmount(reader *bufio.Reader, detail ATMData) b
 		}
 		return c.displayTransferConfirmScreen(reader, detail)
 	}
-	return true
 }
 
 func (c *ATMController) processTrfConfirm(reader *bufio.Reader, detail ATMData, option string) bool {

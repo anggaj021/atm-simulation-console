@@ -1,7 +1,7 @@
 package atm_service
 
 import (
-	account_repository "atm-simulation-console/internal/account/repository"
+	account_repository "atm-simulation-console/internal/repository/account"
 	"bufio"
 	"strings"
 	"testing"
