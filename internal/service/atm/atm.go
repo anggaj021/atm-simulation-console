@@ -10,17 +10,17 @@ import (
 )
 
 type ATMService struct {
-	repo *account_repository.AccountRepository
+	repo account_repository.AccountRepository
 }
 
-func NewATMService(repo *account_repository.AccountRepository) *ATMService {
+func NewATMService(repo account_repository.AccountRepository) *ATMService {
 	return &ATMService{
 		repo: repo,
 	}
 }
 
 func (s *ATMService) AddAccount(account account_repository.Account) bool {
-	return s.repo.AddAccount(account)
+	return s.repo.Add(account)
 }
 
 func (s *ATMService) ValidateAccount(accNumber string) (*account_repository.Account, error) {
@@ -31,7 +31,7 @@ func (s *ATMService) ValidateAccount(accNumber string) (*account_repository.Acco
 		return nil, err
 	}
 
-	acc := s.repo.FindAccount(accNumber)
+	acc := s.repo.Find(accNumber)
 	if acc == nil {
 		return nil, errors.New("invalid account number")
 	}
@@ -111,7 +111,7 @@ func (s *ATMService) Deposit(accNumber string, amount int) bool {
 
 func (s *ATMService) Transfer(srcNumber, destNumber string, amount int) error {
 
-	destNum := s.repo.FindAccount(destNumber)
+	destNum := s.repo.Find(destNumber)
 	if destNum == nil || srcNumber == destNumber {
 		return errors.New("invalid destination account")
 	}

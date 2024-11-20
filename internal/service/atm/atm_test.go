@@ -2,13 +2,14 @@ package atm_service
 
 import (
 	account_repository "atm-simulation-console/internal/repository/account"
+	"atm-simulation-console/internal/repository/account/in_memory"
 	"bufio"
 	"strings"
 	"testing"
 )
 
 func TestAddAccount(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -25,7 +26,7 @@ func TestAddAccount(t *testing.T) {
 }
 
 func TestValidateAccount(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -34,7 +35,7 @@ func TestValidateAccount(t *testing.T) {
 		Pin:           "111111",
 		Balance:       1000,
 	}
-	repo.AddAccount(testAccount)
+	repo.Add(testAccount)
 
 	// Test valid account
 	validAccount, _ := atmSvc.ValidateAccount("123456")
@@ -62,7 +63,7 @@ func TestValidateAccount(t *testing.T) {
 }
 
 func TestValidatePIN(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -71,7 +72,7 @@ func TestValidatePIN(t *testing.T) {
 		Pin:           "111111",
 		Balance:       1000,
 	}
-	repo.AddAccount(testAccount)
+	repo.Add(testAccount)
 
 	// Test valid account
 	validAccount, _ := atmSvc.ValidatePIN(&testAccount, "111111")
@@ -99,7 +100,7 @@ func TestValidatePIN(t *testing.T) {
 }
 
 func TestTransfer(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test accounts
@@ -113,8 +114,8 @@ func TestTransfer(t *testing.T) {
 		Pin:           "5678",
 		Balance:       2000,
 	}
-	repo.AddAccount(srcAccount)
-	repo.AddAccount(destAccount)
+	repo.Add(srcAccount)
+	repo.Add(destAccount)
 
 	err := atmSvc.CheckBalance("123456", 500)
 	if err != nil {
@@ -175,7 +176,7 @@ func TestTransfer(t *testing.T) {
 }
 
 func TestValidateOtherWithdraw(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test accounts
@@ -184,7 +185,7 @@ func TestValidateOtherWithdraw(t *testing.T) {
 		Pin:           "1234",
 		Balance:       500,
 	}
-	repo.AddAccount(srcAccount)
+	repo.Add(srcAccount)
 
 	err := atmSvc.ValidateOtherWithdraw("123456", 500)
 	if err != nil {
@@ -208,7 +209,7 @@ func TestValidateOtherWithdraw(t *testing.T) {
 }
 
 func TestGetInputNumber(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 	tests := []struct {
 		input     string
@@ -231,7 +232,7 @@ func TestGetInputNumber(t *testing.T) {
 }
 
 func TestGetInputString(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 	tests := []struct {
 		input     string
@@ -253,7 +254,7 @@ func TestGetInputString(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -262,7 +263,7 @@ func TestGetBalance(t *testing.T) {
 		Pin:           "1234",
 		Balance:       1000,
 	}
-	repo.AddAccount(testAccount)
+	repo.Add(testAccount)
 
 	// Test getting balance
 	balance := atmSvc.GetBalance("123456")
@@ -272,7 +273,7 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -281,7 +282,7 @@ func TestWithdraw(t *testing.T) {
 		Pin:           "1234",
 		Balance:       1000,
 	}
-	repo.AddAccount(testAccount)
+	repo.Add(testAccount)
 
 	// Test successful withdrawal
 	if !atmSvc.Withdraw("123456", 500) {
@@ -298,7 +299,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestDeposit(t *testing.T) {
-	repo := account_repository.NewAccountRepository()
+	repo := in_memory.NewInMemoryAccount()
 	atmSvc := NewATMService(repo)
 
 	// Add test account
@@ -307,7 +308,7 @@ func TestDeposit(t *testing.T) {
 		Pin:           "1234",
 		Balance:       1000,
 	}
-	repo.AddAccount(testAccount)
+	repo.Add(testAccount)
 
 	// Test successful deposit
 	if !atmSvc.Deposit("123456", 500) {

@@ -31,7 +31,7 @@ func NewATMController(svc *atm_service.ATMService) *ATMController {
 }
 
 func (c *ATMController) Start() {
-	c.initSampleAccounts()
+	// c.initSampleAccounts()
 
 	reader := bufio.NewReader(os.Stdin)
 

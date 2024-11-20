@@ -1,26 +1,29 @@
-package account_repository
+package in_memory
 
-import "testing"
+import (
+	account_repository "atm-simulation-console/internal/repository/account"
+	"testing"
+)
 
 func TestFindAccount(t *testing.T) {
-	repo := NewAccountRepository()
-	repo.AddAccount(Account{
+	repo := NewInMemoryAccount()
+	repo.Add(account_repository.Account{
 		AccountNumber: "123456",
 		Pin:           "1234",
 		Balance:       10000,
 	})
 
-	if repo.FindAccount("123456") == nil {
+	if repo.Find("123456") == nil {
 		t.Errorf("expected account, got nil")
 	}
-	if repo.FindAccount("123451") != nil {
+	if repo.Find("123451") != nil {
 		t.Errorf("expected nil, got account")
 	}
 }
 
 func TestGetBalance(t *testing.T) {
-	repo := NewAccountRepository()
-	repo.AddAccount(Account{
+	repo := NewInMemoryAccount()
+	repo.Add(account_repository.Account{
 		AccountNumber: "123456",
 		Pin:           "1234",
 		Balance:       10000,
@@ -32,8 +35,8 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	repo := NewAccountRepository()
-	repo.AddAccount(Account{
+	repo := NewInMemoryAccount()
+	repo.Add(account_repository.Account{
 		AccountNumber: "123456",
 		Pin:           "1234",
 		Balance:       10000,
@@ -51,8 +54,8 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestDeposit(t *testing.T) {
-	repo := NewAccountRepository()
-	repo.AddAccount(Account{
+	repo := NewInMemoryAccount()
+	repo.Add(account_repository.Account{
 		AccountNumber: "123456",
 		Pin:           "1234",
 		Balance:       10000,
