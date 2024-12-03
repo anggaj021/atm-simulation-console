@@ -67,8 +67,12 @@ func (c *ATMController) processMainMenu(reader *bufio.Reader, accNumber string, 
 	case "1":
 		return c.displayWithdrawScreen(reader, accNumber)
 	case "2":
+		return c.displayDepositScreen(reader, accNumber)
+	case "3":
 		return c.displayTrfDestNumScreen(reader, accNumber)
-	case "3", "":
+	case "4":
+		return c.processTrxHistoryScreen(accNumber)
+	case "5", "":
 		formatter.ErrorMessage("exiting...")
 		return false
 	default:
@@ -113,6 +117,16 @@ func (c *ATMController) processWithdrawMenu(reader *bufio.Reader, accNumber stri
 	return true
 }
 
+func (c *ATMController) processDepositMenu(accNumber string, amount string) bool {
+	intAmount, err := strconv.Atoi(amount)
+	if err != nil {
+		formatter.ErrorMessage("invalid amount")
+		return false
+	}
+	c.service.Deposit(accNumber, intAmount)
+	return true
+}
+
 func (c *ATMController) processWdSummary(reader *bufio.Reader, accNumber string, option string) bool {
 	switch option {
 	case "1":
@@ -123,6 +137,23 @@ func (c *ATMController) processWdSummary(reader *bufio.Reader, accNumber string,
 		formatter.ErrorMessage("invalid option")
 	}
 
+	return true
+}
+
+func (c *ATMController) processTrxHistoryScreen(accNumber string) bool {
+	list := c.service.GetTransactionHistory(accNumber)
+
+	// Print the header for better readability
+	fmt.Println("Transaction History for Account:", accNumber)
+	fmt.Println("---------------------------------------------------")
+	fmt.Printf("%-15s %-10s %-10s %-8s %-6s %-8s %-20s\n",
+		"TransactionID", "Source", "Destination", "Type", "TrxType", "Amount", "Date")
+
+	for _, row := range list {
+		fmt.Printf("%-15s %-10s %-10s %-10s %-6s %-8d %-20s\n",
+			row.TransactionID, row.SourceID, row.DestinationID, row.Type,
+			row.TrxType, row.Amount, row.Date)
+	}
 	return true
 }
 
@@ -205,9 +236,11 @@ func (c *ATMController) processTrxSummary(reader *bufio.Reader, accNumber string
 
 func (c *ATMController) displayTrxScreen(reader *bufio.Reader, accNumber string) bool {
 	fmt.Println("1. Withdraw")
-	fmt.Println("2. Fund Transfer")
-	fmt.Println("3. Exit")
-	fmt.Print("Please choose option[3]: ")
+	fmt.Println("2. Deposit")
+	fmt.Println("3. Fund Transfer")
+	fmt.Println("4. Transaction History")
+	fmt.Println("5. Exit")
+	fmt.Print("Please choose option[5]: ")
 
 	option := c.service.GetInputString(reader)
 	return c.processMainMenu(reader, accNumber, option)
@@ -223,6 +256,13 @@ func (c *ATMController) displayWithdrawScreen(reader *bufio.Reader, accNumber st
 
 	option := c.service.GetInputString(reader)
 	return c.processWithdrawMenu(reader, accNumber, option)
+}
+
+func (c *ATMController) displayDepositScreen(reader *bufio.Reader, accNumber string) bool {
+	fmt.Print("Enter amount to deposit: ")
+
+	amount := c.service.GetInputString(reader)
+	return c.processDepositMenu(accNumber, amount)
 }
 
 func (c *ATMController) displayOtherWithdrawScreen(reader *bufio.Reader, accNumber string) bool {

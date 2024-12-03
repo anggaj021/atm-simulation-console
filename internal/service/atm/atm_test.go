@@ -3,6 +3,7 @@ package atm_service
 import (
 	account_repository "atm-simulation-console/internal/repository/account"
 	"atm-simulation-console/internal/repository/account/in_memory"
+	transaction_csv "atm-simulation-console/internal/repository/transaction/csv"
 	"bufio"
 	"strings"
 	"testing"
@@ -10,7 +11,9 @@ import (
 
 func TestAddAccount(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{
@@ -27,7 +30,8 @@ func TestAddAccount(t *testing.T) {
 
 func TestValidateAccount(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{
@@ -64,7 +68,9 @@ func TestValidateAccount(t *testing.T) {
 
 func TestValidatePIN(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{
@@ -101,7 +107,9 @@ func TestValidatePIN(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test accounts
 	srcAccount := account_repository.Account{
@@ -177,7 +185,9 @@ func TestTransfer(t *testing.T) {
 
 func TestValidateOtherWithdraw(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test accounts
 	srcAccount := account_repository.Account{
@@ -210,7 +220,9 @@ func TestValidateOtherWithdraw(t *testing.T) {
 
 func TestGetInputNumber(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 	tests := []struct {
 		input     string
 		expected  int
@@ -233,7 +245,9 @@ func TestGetInputNumber(t *testing.T) {
 
 func TestGetInputString(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 	tests := []struct {
 		input     string
 		expected  string
@@ -255,7 +269,9 @@ func TestGetInputString(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{
@@ -274,7 +290,9 @@ func TestGetBalance(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{
@@ -300,7 +318,9 @@ func TestWithdraw(t *testing.T) {
 
 func TestDeposit(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
-	atmSvc := NewATMService(repo)
+	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
+
+	atmSvc := NewATMService(repo, trxRepo)
 
 	// Add test account
 	testAccount := account_repository.Account{

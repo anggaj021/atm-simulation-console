@@ -1,4 +1,4 @@
-package csv
+package account_csv
 
 import (
 	account_repository "atm-simulation-console/internal/repository/account"

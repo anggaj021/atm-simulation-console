@@ -2,25 +2,34 @@ package atm_service
 
 import (
 	account_repository "atm-simulation-console/internal/repository/account"
+	transaction_repository "atm-simulation-console/internal/repository/transaction"
+	"atm-simulation-console/internal/util/formatter"
+	"atm-simulation-console/internal/util/generator"
 	"bufio"
 	"errors"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ATMService struct {
-	repo account_repository.AccountRepository
+	accRepo account_repository.AccountRepository
+	trxRepo transaction_repository.TransactionRepository
 }
 
-func NewATMService(repo account_repository.AccountRepository) *ATMService {
+func NewATMService(
+	accRepo account_repository.AccountRepository,
+	trxRepo transaction_repository.TransactionRepository,
+) *ATMService {
 	return &ATMService{
-		repo: repo,
+		accRepo: accRepo,
+		trxRepo: trxRepo,
 	}
 }
 
 func (s *ATMService) AddAccount(account account_repository.Account) bool {
-	return s.repo.Add(account)
+	return s.accRepo.Add(account)
 }
 
 func (s *ATMService) ValidateAccount(accNumber string) (*account_repository.Account, error) {
@@ -31,7 +40,7 @@ func (s *ATMService) ValidateAccount(accNumber string) (*account_repository.Acco
 		return nil, err
 	}
 
-	acc := s.repo.Find(accNumber)
+	acc := s.accRepo.Find(accNumber)
 	if acc == nil {
 		return nil, errors.New("invalid account number")
 	}
@@ -55,7 +64,7 @@ func (s *ATMService) ValidatePIN(account *account_repository.Account, pin string
 }
 
 func (s *ATMService) GetBalance(accNumber string) int {
-	return s.repo.GetBalance(accNumber)
+	return s.accRepo.GetBalance(accNumber)
 }
 
 func (s *ATMService) CheckBalance(accNumber string, amount int) error {
@@ -102,22 +111,87 @@ func (s *ATMService) ValidateTransferAmount(accNumber string, amount int) error 
 }
 
 func (s *ATMService) Withdraw(accNumber string, amount int) bool {
-	return s.repo.Withdraw(accNumber, amount)
+	success := s.accRepo.Withdraw(accNumber, amount)
+	if success {
+		trx := transaction_repository.Transaction{
+			TransactionID: generateTrxNumber("TRX-WD"),
+			SourceID:      "",
+			DestinationID: accNumber,
+			Type:          "withdraw",
+			TrxType:       "db",
+			Amount:        amount,
+			Date:          formatter.DateFormatter(time.Now()),
+		}
+
+		return s.trxRepo.StoreHistory(trx)
+	}
+
+	return false
 }
 
 func (s *ATMService) Deposit(accNumber string, amount int) bool {
-	return s.repo.Deposit(accNumber, amount)
+	success := s.accRepo.Deposit(accNumber, amount)
+	if success {
+		trx := transaction_repository.Transaction{
+			TransactionID: generateTrxNumber("TRX-DP"),
+			SourceID:      "",
+			DestinationID: accNumber,
+			Type:          "deposit",
+			TrxType:       "cr",
+			Amount:        amount,
+			Date:          formatter.DateFormatter(time.Now()),
+		}
+
+		return s.trxRepo.StoreHistory(trx)
+	}
+
+	return false
 }
 
 func (s *ATMService) Transfer(srcNumber, destNumber string, amount int) error {
 
-	destNum := s.repo.Find(destNumber)
+	destNum := s.accRepo.Find(destNumber)
 	if destNum == nil || srcNumber == destNumber {
 		return errors.New("invalid destination account")
 	}
 
-	if s.repo.Withdraw(srcNumber, amount) {
-		s.repo.Deposit(destNumber, amount)
+	transactions := []transaction_repository.Transaction{}
+
+	if s.accRepo.Withdraw(srcNumber, amount) {
+		trxNum := generateTrxNumber("TRX-TF")
+		wd := transaction_repository.Transaction{
+			TransactionID: trxNum,
+			SourceID:      srcNumber,
+			DestinationID: destNumber,
+			Type:          "transfer",
+			TrxType:       "cr",
+			Amount:        amount,
+			Date:          formatter.DateFormatter(time.Now()),
+		}
+
+		transactions = append(transactions, wd)
+
+		success := s.accRepo.Deposit(destNumber, amount)
+		if !success {
+			return errors.New("error transfering balance")
+		}
+
+		dp := transaction_repository.Transaction{
+			TransactionID: trxNum,
+			SourceID:      destNumber,
+			DestinationID: srcNumber,
+			Type:          "transfer",
+			TrxType:       "db",
+			Amount:        amount,
+			Date:          formatter.DateFormatter(time.Now()),
+		}
+
+		transactions = append(transactions, dp)
+
+		for _, row := range transactions {
+			s.trxRepo.StoreHistory(row)
+		}
+
 		return nil
 	}
 	return errors.New("insufficient balance " + "$" + strconv.Itoa(amount))
@@ -135,6 +209,10 @@ func (s *ATMService) GetInputNumber(reader *bufio.Reader) (int, error) {
 		return 0, errors.New("invalid input: please enter a valid number")
 	}
 	return amount, nil
+}
+
+func (s *ATMService) GetTransactionHistory(accNumber string) []transaction_repository.Transaction {
+	return s.trxRepo.GetHistory(accNumber, 10)
 }
 
 func (s *ATMService) GetInputString(reader *bufio.Reader) string {
@@ -157,4 +235,8 @@ func validateDigitsOnly(input string, fieldName string) error {
 		return errors.New(fieldName + " should only contain numbers")
 	}
 	return nil
+}
+
+func generateTrxNumber(prefix string) string {
+	return prefix + "-" + strconv.Itoa(generator.GenerateRandomNDigitNumber(6))
 }
