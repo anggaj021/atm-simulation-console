@@ -3,11 +3,53 @@ package atm_service
 import (
 	account_repository "atm-simulation-console/internal/repository/account"
 	"atm-simulation-console/internal/repository/account/in_memory"
+	transaction_repository "atm-simulation-console/internal/repository/transaction"
 	transaction_csv "atm-simulation-console/internal/repository/transaction/csv"
 	"bufio"
 	"strings"
 	"testing"
 )
+
+type MockAccountRepository struct {
+	AddFn        func(account account_repository.Account) bool
+	FindFn       func(number string) *account_repository.Account
+	GetBalanceFn func(number string) int
+	WithdrawFn   func(number string, amount int) bool
+	DepositFn    func(number string, amount int) bool
+}
+
+func (m *MockAccountRepository) Add(account account_repository.Account) bool {
+	return m.AddFn(account)
+}
+
+func (m *MockAccountRepository) Find(accountNumber string) *account_repository.Account {
+	return m.FindFn(accountNumber)
+}
+
+func (m *MockAccountRepository) GetBalance(number string) int {
+	return m.GetBalanceFn(number)
+}
+
+func (m *MockAccountRepository) Withdraw(accountNumber string, amount int) bool {
+	return m.WithdrawFn(accountNumber, amount)
+}
+
+func (m *MockAccountRepository) Deposit(accountNumber string, amount int) bool {
+	return m.DepositFn(accountNumber, amount)
+}
+
+type MockTransactionRepository struct {
+	StoreFn func(transaction transaction_repository.Transaction) bool
+	GetFn   func(userID string, limit int) []transaction_repository.Transaction
+}
+
+func (m *MockTransactionRepository) Store(transaction transaction_repository.Transaction) bool {
+	return m.StoreFn(transaction)
+}
+
+func (m *MockTransactionRepository) Get(userID string, limit int) []transaction_repository.Transaction {
+	return m.GetFn(userID, limit)
+}
 
 func TestAddAccount(t *testing.T) {
 	repo := in_memory.NewInMemoryAccount()
@@ -102,84 +144,6 @@ func TestValidatePIN(t *testing.T) {
 	acc, _ = atmSvc.ValidatePIN(&testAccount, "123111")
 	if acc != nil {
 		t.Error("Expected nil, got account")
-	}
-}
-
-func TestTransfer(t *testing.T) {
-	repo := in_memory.NewInMemoryAccount()
-	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
-
-	atmSvc := NewATMService(repo, trxRepo)
-
-	// Add test accounts
-	srcAccount := account_repository.Account{
-		AccountNumber: "123456",
-		Pin:           "1234",
-		Balance:       500,
-	}
-	destAccount := account_repository.Account{
-		AccountNumber: "987654",
-		Pin:           "5678",
-		Balance:       2000,
-	}
-	repo.Add(srcAccount)
-	repo.Add(destAccount)
-
-	err := atmSvc.CheckBalance("123456", 500)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	err = atmSvc.CheckBalance("123456", 600)
-	if err == nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	err = atmSvc.ValidateTransferAmount("123456", 500)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// balance less than 0
-	err = atmSvc.ValidateTransferAmount("123456", -1)
-	if err == nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// balance more than 1000
-	err = atmSvc.ValidateTransferAmount("123456", 1500)
-	if err == nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// insufficient balance
-	err = atmSvc.ValidateTransferAmount("123456", 700)
-	if err == nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// Test successful transfer
-	err = atmSvc.Transfer("123456", "987654", 500)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	if repo.GetBalance("123456") != 0 {
-		t.Errorf("Expected balance of 0 for source account, got %d", repo.GetBalance("123456"))
-	}
-	if repo.GetBalance("987654") != 2500 {
-		t.Errorf("Expected balance of 2500 for destination account, got %d", repo.GetBalance("987654"))
-	}
-
-	// Test failed transfer due to invalid destination account
-	err = atmSvc.Transfer("123456", "999999", 500)
-	if err == nil {
-		t.Error("Expected false for failed transfer (invalid destination account), got true")
-	}
-
-	// Test failed transfer due to insufficient balance
-	err = atmSvc.Transfer("123456", "987654", 1500)
-	if err == nil {
-		t.Errorf("Expected 'insufficient balance' error message, got %s", err)
 	}
 }
 
@@ -288,53 +252,386 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
-func TestWithdraw(t *testing.T) {
-	repo := in_memory.NewInMemoryAccount()
-	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
-
-	atmSvc := NewATMService(repo, trxRepo)
-
-	// Add test account
-	testAccount := account_repository.Account{
-		AccountNumber: "123456",
-		Pin:           "1234",
-		Balance:       1000,
+func TestATMService_Transfer(t *testing.T) {
+	type fields struct {
+		accRepo *MockAccountRepository
+		trxRepo *MockTransactionRepository
 	}
-	repo.Add(testAccount)
-
-	// Test successful withdrawal
-	if !atmSvc.Withdraw("123456", 500) {
-		t.Error("Expected true for successful withdrawal, got false")
+	type args struct {
+		srcNumber  string
+		destNumber string
+		amount     int
 	}
-	if repo.GetBalance("123456") != 500 {
-		t.Errorf("Expected balance of 500 after withdrawal, got %d", repo.GetBalance("123456"))
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Successful transfer",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						if accountNumber == "654321" {
+							return &account_repository.Account{}
+						}
+						return nil
+					},
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+					DepositFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					StoreFn: func(transaction transaction_repository.Transaction) bool {
+						return true
+					},
+					GetFn: func(userID string, limit int) []transaction_repository.Transaction {
+						return []transaction_repository.Transaction{}
+					},
+				},
+			},
+			args: args{
+				srcNumber:  "123456",
+				destNumber: "654321",
+				amount:     100,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid destination account",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						return nil
+					},
+				},
+				trxRepo: &MockTransactionRepository{},
+			},
+			args: args{
+				srcNumber:  "123456",
+				destNumber: "654321",
+				amount:     100,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Insufficient balance",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						return &account_repository.Account{}
+					},
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return false
+					},
+				},
+				trxRepo: &MockTransactionRepository{},
+			},
+			args: args{
+				srcNumber:  "123456",
+				destNumber: "654321",
+				amount:     100,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Deposit failure",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						return &account_repository.Account{}
+					},
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+					DepositFn: func(accountNumber string, amount int) bool {
+						return false
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					GetFn: func(userID string, limit int) []transaction_repository.Transaction {
+						return []transaction_repository.Transaction{}
+					},
+				},
+			},
+			args: args{
+				srcNumber:  "123456",
+				destNumber: "654321",
+				amount:     100,
+			},
+			wantErr: true,
+		},
 	}
 
-	// Test failed withdrawal due to insufficient balance
-	if atmSvc.Withdraw("123456", 600) {
-		t.Error("Expected false for failed withdrawal due to insufficient balance, got true")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if err := s.Transfer(tt.args.srcNumber, tt.args.destNumber, tt.args.amount); (err != nil) != tt.wantErr {
+				t.Errorf("ATMService.Transfer() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
-func TestDeposit(t *testing.T) {
-	repo := in_memory.NewInMemoryAccount()
-	trxRepo := transaction_csv.NewCSVTransactionRepository("test")
-
-	atmSvc := NewATMService(repo, trxRepo)
-
-	// Add test account
-	testAccount := account_repository.Account{
-		AccountNumber: "123456",
-		Pin:           "1234",
-		Balance:       1000,
+func TestATMService_ValidateTransferAmount(t *testing.T) {
+	type fields struct {
+		accRepo *MockAccountRepository
+		trxRepo *MockTransactionRepository
 	}
-	repo.Add(testAccount)
-
-	// Test successful deposit
-	if !atmSvc.Deposit("123456", 500) {
-		t.Error("Expected true for successful deposit, got false")
+	type args struct {
+		accNumber string
+		amount    int
 	}
-	if repo.GetBalance("123456") != 1500 {
-		t.Errorf("Expected balance of 1500 after deposit, got %d", repo.GetBalance("123456"))
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "Minimum amount error",
+			fields: fields{},
+			args: args{
+				accNumber: "123456",
+				amount:    -5,
+			},
+			wantErr: true,
+		},
+		{
+			name:   "Maximum amount error",
+			fields: fields{},
+			args: args{
+				accNumber: "123456",
+				amount:    1500,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Insufficient balance",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						return &account_repository.Account{}
+					},
+					GetBalanceFn: func(number string) int {
+						return 100
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    500,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Successful validation",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					FindFn: func(accountNumber string) *account_repository.Account {
+						return &account_repository.Account{}
+					},
+					GetBalanceFn: func(number string) int {
+						return 500
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if err := s.ValidateTransferAmount(tt.args.accNumber, tt.args.amount); (err != nil) != tt.wantErr {
+				t.Errorf("ATMService.ValidateTransferAmount() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestATMService_Withdraw(t *testing.T) {
+	type fields struct {
+		accRepo *MockAccountRepository
+		trxRepo *MockTransactionRepository
+	}
+	type args struct {
+		accNumber string
+		amount    int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "Successful withdrawal",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					StoreFn: func(transaction transaction_repository.Transaction) bool {
+						return true
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: true,
+		},
+		{
+			name: "Withdrawal failure due to account repository error",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return false
+					},
+				},
+				trxRepo: &MockTransactionRepository{},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: false,
+		},
+		{
+			name: "Withdrawal failure due to transaction storage error",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					WithdrawFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					StoreFn: func(transaction transaction_repository.Transaction) bool {
+						return false
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if got := s.Withdraw(tt.args.accNumber, tt.args.amount); got != tt.want {
+				t.Errorf("ATMService.Withdraw() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestATMService_Deposit(t *testing.T) {
+	type fields struct {
+		accRepo *MockAccountRepository
+		trxRepo *MockTransactionRepository
+	}
+	type args struct {
+		accNumber string
+		amount    int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "Successful deposit",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					DepositFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					StoreFn: func(transaction transaction_repository.Transaction) bool {
+						return true
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: true,
+		},
+		{
+			name: "Deposit failure due to account repository error",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					DepositFn: func(accountNumber string, amount int) bool {
+						return false
+					},
+				},
+				trxRepo: &MockTransactionRepository{},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: false,
+		},
+		{
+			name: "Deposit failure due to transaction storage error",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					DepositFn: func(accountNumber string, amount int) bool {
+						return true
+					},
+				},
+				trxRepo: &MockTransactionRepository{
+					StoreFn: func(transaction transaction_repository.Transaction) bool {
+						return false
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    200,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if got := s.Deposit(tt.args.accNumber, tt.args.amount); got != tt.want {
+				t.Errorf("ATMService.Deposit() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

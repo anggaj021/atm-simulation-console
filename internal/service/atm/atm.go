@@ -123,7 +123,7 @@ func (s *ATMService) Withdraw(accNumber string, amount int) bool {
 			Date:          formatter.DateFormatter(time.Now()),
 		}
 
-		return s.trxRepo.StoreHistory(trx)
+		return s.trxRepo.Store(trx)
 	}
 
 	return false
@@ -142,7 +142,7 @@ func (s *ATMService) Deposit(accNumber string, amount int) bool {
 			Date:          formatter.DateFormatter(time.Now()),
 		}
 
-		return s.trxRepo.StoreHistory(trx)
+		return s.trxRepo.Store(trx)
 	}
 
 	return false
@@ -189,7 +189,7 @@ func (s *ATMService) Transfer(srcNumber, destNumber string, amount int) error {
 		transactions = append(transactions, dp)
 
 		for _, row := range transactions {
-			s.trxRepo.StoreHistory(row)
+			s.trxRepo.Store(row)
 		}
 
 		return nil
@@ -212,7 +212,7 @@ func (s *ATMService) GetInputNumber(reader *bufio.Reader) (int, error) {
 }
 
 func (s *ATMService) GetTransactionHistory(accNumber string) []transaction_repository.Transaction {
-	return s.trxRepo.GetHistory(accNumber, 10)
+	return s.trxRepo.Get(accNumber, 10)
 }
 
 func (s *ATMService) GetInputString(reader *bufio.Reader) string {

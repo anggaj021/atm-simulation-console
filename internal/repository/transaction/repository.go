@@ -12,6 +12,6 @@ type Transaction struct {
 }
 
 type TransactionRepository interface {
-	GetHistory(userID string, limit int) []Transaction
-	StoreHistory(transaction Transaction) bool
+	Get(userID string, limit int) []Transaction
+	Store(transaction Transaction) bool
 }

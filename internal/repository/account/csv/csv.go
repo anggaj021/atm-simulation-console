@@ -32,7 +32,7 @@ func (r *CSVAccountRepository) Add(account account_repository.Account) bool {
 }
 
 func (r *CSVAccountRepository) Find(accountNumber string) *account_repository.Account {
-	accounts := r.readAllAccounts()
+	accounts := r.ReadAllAccounts()
 	for _, account := range accounts {
 		if account.AccountNumber == accountNumber {
 			return &account
@@ -50,7 +50,7 @@ func (r *CSVAccountRepository) GetBalance(accountNumber string) int {
 }
 
 func (r *CSVAccountRepository) Withdraw(number string, amount int) bool {
-	accounts := r.readAllAccounts()
+	accounts := r.ReadAllAccounts()
 
 	if len(accounts) <= 0 {
 		return false
@@ -65,11 +65,11 @@ func (r *CSVAccountRepository) Withdraw(number string, amount int) bool {
 		}
 	}
 
-	return r.writeAllAccounts(accounts)
+	return r.WriteAllAccounts(accounts)
 }
 
 func (r *CSVAccountRepository) Deposit(number string, amount int) bool {
-	accounts := r.readAllAccounts()
+	accounts := r.ReadAllAccounts()
 
 	if len(accounts) <= 0 {
 		return false
@@ -81,10 +81,10 @@ func (r *CSVAccountRepository) Deposit(number string, amount int) bool {
 		}
 	}
 
-	return r.writeAllAccounts(accounts)
+	return r.WriteAllAccounts(accounts)
 }
 
-func (r *CSVAccountRepository) readAllAccounts() []account_repository.Account {
+func (r *CSVAccountRepository) ReadAllAccounts() []account_repository.Account {
 	file, err := os.Open(r.filePath)
 	if err != nil {
 		return []account_repository.Account{}
@@ -113,7 +113,7 @@ func (r *CSVAccountRepository) readAllAccounts() []account_repository.Account {
 	return accounts
 }
 
-func (r *CSVAccountRepository) writeAllAccounts(accounts []account_repository.Account) bool {
+func (r *CSVAccountRepository) WriteAllAccounts(accounts []account_repository.Account) bool {
 	file, err := os.Create(r.filePath)
 	if err != nil {
 		return false
