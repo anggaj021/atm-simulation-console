@@ -29,7 +29,7 @@ func (r *CSVTransactionRepository) Get(accNumber string, limit int) []transactio
 				counter++
 			}
 		case "transfer":
-			if row.DestinationID == accNumber || row.SourceID == accNumber {
+			if row.DestinationID == accNumber {
 				trxHistory = append(trxHistory, row)
 				counter++
 			}
