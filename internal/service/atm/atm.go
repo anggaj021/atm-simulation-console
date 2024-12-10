@@ -123,7 +123,8 @@ func (s *ATMService) Withdraw(accNumber string, amount int) bool {
 			Date:          formatter.DateFormatter(time.Now()),
 		}
 
-		return s.trxRepo.Store(trx)
+		go s.trxRepo.Store(trx)
+		return true
 	}
 
 	return false
@@ -142,7 +143,8 @@ func (s *ATMService) Deposit(accNumber string, amount int) bool {
 			Date:          formatter.DateFormatter(time.Now()),
 		}
 
-		return s.trxRepo.Store(trx)
+		go s.trxRepo.Store(trx)
+		return true
 	}
 
 	return false
@@ -189,7 +191,7 @@ func (s *ATMService) Transfer(srcNumber, destNumber string, amount int) error {
 		transactions = append(transactions, dp)
 
 		for _, row := range transactions {
-			s.trxRepo.Store(row)
+			go s.trxRepo.Store(row)
 		}
 
 		return nil

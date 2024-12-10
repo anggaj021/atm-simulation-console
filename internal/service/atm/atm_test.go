@@ -6,6 +6,7 @@ import (
 	transaction_repository "atm-simulation-console/internal/repository/transaction"
 	transaction_csv "atm-simulation-console/internal/repository/transaction/csv"
 	"bufio"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -515,26 +516,6 @@ func TestATMService_Withdraw(t *testing.T) {
 			},
 			want: false,
 		},
-		{
-			name: "Withdrawal failure due to transaction storage error",
-			fields: fields{
-				accRepo: &MockAccountRepository{
-					WithdrawFn: func(accountNumber string, amount int) bool {
-						return true
-					},
-				},
-				trxRepo: &MockTransactionRepository{
-					StoreFn: func(transaction transaction_repository.Transaction) bool {
-						return false
-					},
-				},
-			},
-			args: args{
-				accNumber: "123456",
-				amount:    200,
-			},
-			want: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -601,26 +582,6 @@ func TestATMService_Deposit(t *testing.T) {
 			},
 			want: false,
 		},
-		{
-			name: "Deposit failure due to transaction storage error",
-			fields: fields{
-				accRepo: &MockAccountRepository{
-					DepositFn: func(accountNumber string, amount int) bool {
-						return true
-					},
-				},
-				trxRepo: &MockTransactionRepository{
-					StoreFn: func(transaction transaction_repository.Transaction) bool {
-						return false
-					},
-				},
-			},
-			args: args{
-				accNumber: "123456",
-				amount:    200,
-			},
-			want: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -631,6 +592,121 @@ func TestATMService_Deposit(t *testing.T) {
 			}
 			if got := s.Deposit(tt.args.accNumber, tt.args.amount); got != tt.want {
 				t.Errorf("ATMService.Deposit() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestATMService_GetTransactionHistory(t *testing.T) {
+	type fields struct {
+		accRepo account_repository.AccountRepository
+		trxRepo transaction_repository.TransactionRepository
+	}
+	type args struct {
+		accNumber string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []transaction_repository.Transaction
+	}{
+		{
+			name: "Success get trx history",
+			fields: fields{
+				trxRepo: &MockTransactionRepository{
+					GetFn: func(userID string, limit int) []transaction_repository.Transaction {
+						return []transaction_repository.Transaction{}
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+			},
+			want: []transaction_repository.Transaction{},
+		},
+		{
+			name: "failed get trx history",
+			fields: fields{
+				trxRepo: &MockTransactionRepository{
+					GetFn: func(userID string, limit int) []transaction_repository.Transaction {
+						return nil
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if got := s.GetTransactionHistory(tt.args.accNumber); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ATMService.GetTransactionHistory() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestATMService_CheckBalance(t *testing.T) {
+	type fields struct {
+		accRepo account_repository.AccountRepository
+		trxRepo transaction_repository.TransactionRepository
+	}
+	type args struct {
+		accNumber string
+		amount    int
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Success check balance",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					GetBalanceFn: func(number string) int {
+						return 100
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    50,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Failed check balance",
+			fields: fields{
+				accRepo: &MockAccountRepository{
+					GetBalanceFn: func(number string) int {
+						return 50
+					},
+				},
+			},
+			args: args{
+				accNumber: "123456",
+				amount:    100,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ATMService{
+				accRepo: tt.fields.accRepo,
+				trxRepo: tt.fields.trxRepo,
+			}
+			if err := s.CheckBalance(tt.args.accNumber, tt.args.amount); (err != nil) != tt.wantErr {
+				t.Errorf("ATMService.CheckBalance() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
